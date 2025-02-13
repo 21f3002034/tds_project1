@@ -91,7 +91,7 @@ def task_runner(task: str):
             }
         ],
         "tools": tools,
-        "tool_choice": "none",  # Change to "script_runner" if you want automatic tool execution
+        "tool_choice": "auto",  # Change to "script_runner" if you want automatic tool execution
     }
 
     try:
