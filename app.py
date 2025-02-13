@@ -97,7 +97,7 @@ def task_runner(task: str):
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()
-        return response.json()
+        return response.json()['choices'][0]['message']['tool_calls'][0]['function']
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
 
