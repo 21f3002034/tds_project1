@@ -15,7 +15,7 @@ podman images
 podman run -p 5000:8000 b0aaad927709 
 # looking for running containers with container id
 podman ps
-podman ps -a
+podman ps -a  
 # starting or stopping or logs of container with container id
 podman stop <container id>
 podman start <container id>
