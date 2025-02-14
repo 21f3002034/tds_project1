@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import requests
 import os
+import subprocess
+import json
 
 app = FastAPI()
 
@@ -22,8 +24,8 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
-
-AIPROXY_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6IjIxZjMwMDIwMzRAZHMuc3R1ZHkuaWl0bS5hYy5pbiJ9.KEQjxQbjAIHY8_0l-WpiOL_KrBslnPTFZnexib9N6qc"
+AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
+#AIPROXY_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6IjIxZjMwMDIwMzRAZHMuc3R1ZHkuaWl0bS5hYy5pbiJ9.KEQjxQbjAIHY8_0l-WpiOL_KrBslnPTFZnexib9N6qc"
 if not AIPROXY_TOKEN:
     raise ValueError("AIPROXY_TOKEN environment variable is missing!")
 
@@ -97,7 +99,19 @@ def task_runner(task: str):
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()
+        arguments=response.json()['choices'][0]['message']['tool_calls'][0]['function']
+        args_data = json.loads(arguments["arguments"])
+
+        # Extract script_url and args
+        script_url = args_data["script_url"]
+        args = args_data["args"]  # Assuming this is already a list
+
+        # Flatten args list
+        command = ["uv", "run", script_url] + args + ["--root", "./data"]
+        # Run the command
+        subprocess.run(command, capture_output=True, text=True)
         return response.json()['choices'][0]['message']['tool_calls'][0]['function']
+    
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
 

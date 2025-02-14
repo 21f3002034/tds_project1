@@ -26,3 +26,8 @@ podman logs <container id>
 docker push b0aaad927709 raghuvasanth/ds_project1_docker:tagname
 podman pull raghuvasanth/ds_project1_docker:tagname
 ```
+# running app with token
+```powershell
+uv run app.py AIPROXY_TOKEN='eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6IjIxZjMwMDIwMzRAZHMuc3R1ZHkuaWl0bS5hYy5pbiJ9.KEQjxQbjAIHY8_0l-WpiOL_KrBslnPTFZnexib9N6qc'
+uv run app.py AIPROXY_TOKEN=$AIPROXY_TOKEN
+```

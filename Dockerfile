@@ -14,6 +14,9 @@ ENV PATH="/root/.local/bin/:$PATH"
 
 # Copy file to docker
 WORKDIR /app
+
+RUN mkdir -p /data
+
 COPY app.py /app
 
 CMD ["uv", "run","app.py"]
