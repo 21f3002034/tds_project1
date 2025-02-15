@@ -1,27 +1,31 @@
+# Base image
 FROM python:3.12-slim-bookworm
 
-# The installer requires curl (and certificates) to download the release archive
+# Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates nodejs npm \
+    curl ca-certificates nodejs npm git \
     && rm -rf /var/lib/apt/lists/*
 
-# Download the latest installer
+# Download and install uv
 ADD https://astral.sh/uv/install.sh /uv-installer.sh
-
-# Run the installer then remove it
 RUN sh /uv-installer.sh && rm /uv-installer.sh
-
-# Ensure the installed binary is on the `PATH`
 ENV PATH="/root/.local/bin/:$PATH"
+
+# Install Python dependencies using uv
 
 # Install Prettier globally
 RUN npm install -g prettier@3.4.2
 
-# Copy file to docker
-WORKDIR /app
 
+# Set working directory
+WORKDIR /app
 RUN mkdir -p /data
 
+# Copy application files
 COPY app.py /app
 
-CMD ["uv", "run","app.py"]
+# Set the correct Git executable path for GitPython
+ENV GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git
+
+# Start the application
+CMD ["uv", "run", "app.py"]
