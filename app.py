@@ -18,7 +18,8 @@
 #   "SpeechRecognition",
 #   "gitpython",
 #   "python-multipart",
-#   "duckdb"
+#   "duckdb",
+#   "python-dateutil"
 #   
 # ]
 # ///
@@ -31,6 +32,7 @@ import requests
 import os
 import subprocess
 import json
+
 from typing import Dict, Any, List
 from pathlib import Path
 from datetime import datetime
@@ -62,12 +64,28 @@ if not AIPROXY_TOKEN:
 # Function to run external scripts
 def script_runner(script_url, args):
     try:
+        # Fetch the script content from the given URL
+        
+        response = requests.get(script_url)
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail="Failed to fetch script from URL")
+        
+        # Save the content to datagen.py
+        datagen_filename = "datagen.py"
+        with open(datagen_filename, "w") as f:
+            f.write(response.text)
+
+        # Run the script using uv
         command = ["uv", "run", script_url] + args + ["--root", "./data"]
         result = subprocess.run(command, capture_output=True, text=True, check=True)
+
         return {"success": True, "output": result.stdout}
-    
+
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Script execution failed: {e.stderr}")
+
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching script: {str(e)}")
 
 def format_file(file_path: str, prettier_version: str):
     """
@@ -90,27 +108,29 @@ def format_file(file_path: str, prettier_version: str):
     except Exception as e:
         return {"error": f"An unexpected error occurred: {str(e)}{file_path}"}
 
-def count_wednesdays(input_file: str, output_file: str):
-    wednesday_count = 0
-    accepted_formats = ["%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y", "%B %d, %Y"]
-    input_file = os.path.abspath(input_file)  # Convert to absolute path
-    output_file = os.path.abspath(output_file)
-    with open(f"{input_file}", "r") as file:
-        for line in file:
-            date_str = line.strip()
-            for fmt in accepted_formats:
-                try:
-                    date_obj = datetime.strptime(date_str, fmt)
-                    if date_obj.weekday() == 2:  # Wednesday
-                        wednesday_count += 1
-                    break  # Stop checking formats if parsing succeeds
-                except ValueError:
-                    continue  # Try next format
-                   
-    with open(output_file, "w") as file:
-        file.write(str(wednesday_count))  # Write just the number
 
-    return json.dumps({"output_file": output_file})
+def count_wednesdays(input_file: str, output_file: str):
+    
+        wednesday_count = 0
+        accepted_formats = ["%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y", "%B %d, %Y"]
+        input_file = os.path.abspath(input_file)  # Convert to absolute path
+        output_file = os.path.abspath(output_file)
+        with open(f"{input_file}", "r") as file:
+            for line in file:
+                date_str = line.strip()
+                for fmt in accepted_formats:
+                    try:
+                        date_obj = datetime.strptime(date_str, fmt)
+                        if date_obj.weekday() == 2:  # Wednesday
+                            wednesday_count += 1
+                        break  # Stop checking formats if parsing succeeds
+                    except ValueError:
+                        continue  # Try next format
+                    
+        with open(output_file, "w") as file:
+            file.write(str(wednesday_count))  # Write just the number
+
+        return json.dumps({"output_file": output_file})
 
 def sort_contacts(input_file: str, output_file: str):
     """
@@ -142,44 +162,46 @@ def sort_contacts(input_file: str, output_file: str):
     except Exception as e:
         return {"error": f"An unexpected error occurred: {str(e)}"}
 
+
 def get_recent_log_entries(log_directory: str, output_file: str):
     """
     Extract the first line from the 10 most recent .log files in a directory
     and write them to an output file, most recent first.
     """
+    
+        
     try:
-        log_directory="./data/logs"
-        # Ensure directory exists
-        if not os.path.isdir(log_directory):
-            return {"error": f"Directory not found: {log_directory}"}
-         # Convert to absolute path
-        output_file = "./data/logs-recent.txt"
-        # Get list of .log files sorted by modification time (most recent first)
-        log_files = sorted(
-            [os.path.join(log_directory, f) for f in os.listdir(log_directory) if f.endswith(".log")],
-            key=lambda f: os.path.getmtime(f),
-            reverse=True
-        )[:10]  # Take the 10 most recent log files
+            log_directory="./data/logs"
+            # Ensure directory exists
+            if not os.path.isdir(log_directory):
+                return {"error": f"Directory not found: {log_directory}"}
+            # Convert to absolute path
+            output_file = "./data/logs-recent.txt"
+            # Get list of .log files sorted by modification time (most recent first)
+            log_files = sorted(
+                [os.path.join(log_directory, f) for f in os.listdir(log_directory) if f.endswith(".log")],
+                key=lambda f: os.path.getmtime(f),
+                reverse=True
+            )[:10]  # Take the 10 most recent log files
 
-        log_entries = []
+            log_entries = []
 
-        for log_file in log_files:
-            try:
-                with open(log_file, "r") as file:
-                    first_line = file.readline().strip()  # Read the first line
-                    if first_line:
-                        log_entries.append(f"{os.path.basename(log_file)}: {first_line}")
-            except Exception as e:
-                log_entries.append(f"{os.path.basename(log_file)}: [Error reading file] {str(e)}")
+            for log_file in log_files:
+                try:
+                    with open(log_file, "r") as file:
+                        first_line = file.readline().strip()  # Read the first line
+                        if first_line:
+                            with open(output_file, "a") as out_file:
+                                print(first_line, file=out_file)                        
+                except Exception as e:
+                    log_entries.append(f"{os.path.basename(log_file)}: [Error reading file] {str(e)}")
 
-        # Write to output file
-        with open(output_file, "w") as out_file:
-            out_file.write("\n".join(log_entries) + "\n")
+                    
 
-        return {"output_file": output_file}
+            return {"output_file": output_file}
 
     except Exception as e:
-        return {"error": f"An unexpected error occurred: {str(e)}"}
+            return {"error": f"An unexpected error occurred: {str(e)}"}
 
 import re
 
